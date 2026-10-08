@@ -13,8 +13,8 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RENDER_ROOT = PROJECT_ROOT / "ML-cylinder"
-WHEEL = RENDER_ROOT / "deploy" / "smart_cylinder_common-0.1.8-py3-none-any.whl"
-WHEEL_SHA256 = "71a3a137125a7b603d3d86f6533fbe1c4c2b05194c53c899bb75e5133c4eeec4"
+WHEEL = RENDER_ROOT / "deploy" / "smart_cylinder_common-0.1.9-py3-none-any.whl"
+WHEEL_SHA256 = "497fc5542799e4bd33d0501fe32e8d91b61edd6a4acbf5267ec7baca78af8b0b"
 MODULES = (
     "system",
     "system.ML.Condition.analysis",
@@ -208,7 +208,7 @@ print('INSTALLED STFT PASS')
 
 
 def assert_installed_contract(result):
-    assert result["version"] == result["package_version"] == "0.1.8"
+    assert result["version"] == result["package_version"] == "0.1.9"
     site = Path(result["site"]).resolve()
     assert [Path(path).resolve() for path in result["search_path"]] == [site / "system"]
     with zipfile.ZipFile(WHEEL) as archive:
@@ -225,7 +225,7 @@ def assert_installed_contract(result):
 
 def assert_source_contract(result):
     """Development selects only the canonical source, matching the release bytes."""
-    assert result["version"] == result["package_version"] == "0.1.8"
+    assert result["version"] == result["package_version"] == "0.1.9"
     assert [Path(path).resolve() for path in result["search_path"]] == [
         PROJECT_ROOT / "system"
     ]
@@ -248,7 +248,7 @@ def test_wheel_identity_and_content():
             if name.endswith("/canonical-source.json")
         )
         manifest = json.loads(archive.read(provenance_name))
-        assert manifest["version"] == "0.1.8"
+        assert manifest["version"] == "0.1.9"
         modules = {name for name in archive.namelist() if name.endswith(".py")}
         assert b"def calculate_stft(" in archive.read("system/ML/Condition/analysis.py")
         assert modules == set(manifest["files"])
@@ -322,8 +322,8 @@ def test_wrong_implementation_is_rejected():
     with pytest.raises(AssertionError):
         assert_installed_contract(
             {
-                "version": "0.1.8",
-                "package_version": "0.1.8",
+                "version": "0.1.9",
+                "package_version": "0.1.9",
                 "site": str(RENDER_ROOT / "uninstalled-site"),
                 "search_path": [str(RENDER_ROOT / "system")],
                 "modules": {},

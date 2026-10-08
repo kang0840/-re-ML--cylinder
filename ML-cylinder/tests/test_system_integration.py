@@ -252,7 +252,7 @@ def test_operation_adapter_clears_training_settings(monkeypatch, capsys):
     monkeypatch.setenv("TRAINING_CYLINDER_ID", "cylinder_01")
     monkeypatch.setenv("COLLECTION_EXPERIMENT_ID", "old-experiment")
     monkeypatch.setattr(
-        adapter["main"].__globals__["metadata"], "version", lambda _: "0.1.8"
+        adapter["main"].__globals__["metadata"], "version", lambda _: "0.1.9"
     )
     monkeypatch.setattr(
         __import__("sys"), "argv", ["adapter", "--operation", "--check-config"]
@@ -985,7 +985,7 @@ const box={console, URLSearchParams, Date, Number, Math, JSON, NaN,
  location:{hostname:'example.com', search:'?serial=SCC-TEST-0001', origin:'https://example.com'},
  window:{location:{origin:'https://example.com'}}, devicePixelRatio:1,
  document:{getElementById:id=>elements[id] ||= {textContent:'',className:'',clientWidth:500,clientHeight:300,getContext:()=>ctx}},
- addEventListener:()=>{},setInterval:(fn,n)=>{assert.equal(n,2000);},
+ AbortController, addEventListener:()=>{},setTimeout:()=>1,clearTimeout:()=>{},
  fetch:async url=>{assert(url.includes('source=canonical')); assert(url.includes('serial=SCC-TEST-0001'));return {ok:true,json:async()=>({latest:null})};}};
 vm.createContext(box);vm.runInContext(fs.readFileSync(process.argv[1],'utf8'),box);
 vm.runInContext('renderCanonical({latest:null})',box);
@@ -1018,6 +1018,41 @@ vm.runInContext('renderCanonical({latest})',box);
 assert.equal(elements.connection.textContent,'NO LIVE DATA');
 vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),preview)',box);
 vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),null)',box);
+"""
+    subprocess.run(
+        ["node", "-e", harness, str(script)], check=True, capture_output=True, text=True
+    )
+
+
+def test_monitoring_single_request_timeout_and_preserved_graph():
+    import subprocess
+    from pathlib import Path
+
+    script = Path(__file__).parents[1] / "public" / "real-monitor.js"
+    harness = r"""
+const vm=require('vm'),fs=require('fs'),assert=require('assert');
+const elements={}, timers=new Map();let id=0,calls=0,resolveFetch,draws=0;
+const ctx=new Proxy({}, {get:(o,k)=>o[k] || (()=>{})});
+const box={console,URLSearchParams,Date,Number,Math,JSON,NaN,AbortController,
+ location:{hostname:'example.com',search:'?serial=SCC-TEST-0001'},window:{location:{origin:'https://example.com'}},devicePixelRatio:1,
+ document:{getElementById:k=>elements[k] ||= {textContent:'',className:'',clientWidth:500,clientHeight:300,getContext:()=>ctx}},
+ addEventListener:()=>{},setTimeout:(fn,n)=>{timers.set(++id,{fn,n});return id;},clearTimeout:k=>timers.delete(k),
+ fetch:(url,options)=>{calls++;return new Promise((resolve,reject)=>{resolveFetch=resolve;options.signal.addEventListener('abort',()=>reject(Object.assign(new Error('timeout'),{name:'AbortError'})));});}};
+vm.createContext(box);vm.runInContext(fs.readFileSync(process.argv[1],'utf8'),box);
+(async()=>{
+ await box.refresh();assert.equal(calls,1); // active request rejects overlapping refresh
+ const data={latest:{session_id:'s',timestamp:new Date().toISOString(),last_received_at:new Date().toISOString(),live_status:'STALE',stft_preview:{}}};
+ resolveFetch({ok:true,json:async()=>data});await new Promise(setImmediate);
+ assert([...timers.values()].some(t=>t.n===2000));
+ box.drawSpectrogram=()=>{draws++;};
+ const retry=box.refresh();assert.equal(calls,2);
+ [...timers.values()].find(t=>t.n===15000).fn();await retry;
+ assert.equal(draws,0);assert(elements.note.textContent.includes('마지막 저장 그래프 유지'));
+ assert(elements.connection.textContent.includes('LIVE 아님'));
+ assert([...timers.values()].some(t=>t.n===4000));
+ const limited=box.refresh();resolveFetch({status:429});await limited;
+ assert([...timers.values()].some(t=>t.n===60000));assert.equal(draws,0);
+})().catch(e=>{console.error(e);process.exitCode=1;});
 """
     subprocess.run(
         ["node", "-e", harness, str(script)], check=True, capture_output=True, text=True

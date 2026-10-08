@@ -116,6 +116,8 @@ Python은 Black을 사용한다. JavaScript에서 블록 스타일이 필요한 
 코드 스타일은 기존 naming을 유지하고 함수와 클래스의 책임을 분리한다. 불필요한 helper/utils 파일이나 하나의 작은 함수를 위한 폴더를 생성하지 않는다.
 
 ## 구조 변경 규칙
+2026-10-08: DB 조회 투영·동일 세션 결과 재사용·Preview 정리 조회 축소와 DB 조회 완료 후 LIVE 시각 판정을 포함한 공통 배포 산출물은 0.1.9다. 기존 Wheel은 불변으로 보존하며 패키지 생성·로컬 설치 검증과 Pi/Render 실제 배포 완료를 구분한다.
+
 2026-10-06 사용자 후속 결정: 실제 수집·분석 원본은 Canonical `system/`이며 `sensor_runtime.py`와 배포 Adapter `ML-cylinder/deploy/pi_sensor_runtime.py`를 사용한다. `token_main.py`는 수정·Import·기능 복사하지 않는 LEGACY / ROLLBACK ONLY다. Smart Cylinder Pico Monitor는 read-only 통신 확인용으로 유지한다. 파일 존재·Package 설치와 실제 Service 실행을 구분하고, Pi 전환 및 실제 Raw 저장·라벨 검증 전 본 수집 준비 완료로 보고하지 않는다.
 
 공통 Python 코드의 유일한 개발 원본은 최상위 `system/`이다. `smart-cylinder-common` Wheel은 이 원본에서 자동 생성하는 버전 고정 배포 산출물이며 Render와 Pi는 동일 산출물을 사용한다. 개발 테스트는 원본을, 배포 테스트는 설치된 Wheel을 검증한다. `ML-cylinder/system/` 중복 패키지는 검증·승인 후 제거했으며, 공통 코드를 `ML-cylinder` 내부에 수동 복사하거나 별도 업무 구현·자동 Fallback을 추가하지 않는다. 설치 성공과 실제 import 경로·버전·내용 검증을 구분하며, 원본 변경 시 패키지 버전을 올리고 같은 버전의 Wheel을 다른 내용으로 덮어쓰지 않는다.
