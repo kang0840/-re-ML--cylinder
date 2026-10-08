@@ -13,8 +13,8 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RENDER_ROOT = PROJECT_ROOT / "ML-cylinder"
-WHEEL = RENDER_ROOT / "deploy" / "smart_cylinder_common-0.1.9-py3-none-any.whl"
-WHEEL_SHA256 = "497fc5542799e4bd33d0501fe32e8d91b61edd6a4acbf5267ec7baca78af8b0b"
+WHEEL = RENDER_ROOT / "deploy" / "smart_cylinder_common-0.1.10-py3-none-any.whl"
+WHEEL_SHA256 = "3401c1ba2aa96e12b4e9d662c315e2d4424ffa9a3758a39eb6758017a3c7b9f5"
 MODULES = (
     "system",
     "system.ML.Condition.analysis",
@@ -91,6 +91,13 @@ def test_previous_wheel_preserved():
     previous = WHEEL.parent / "smart_cylinder_common-0.1.0-py3-none-any.whl"
     assert hashlib.sha256(previous.read_bytes()).hexdigest() == (
         "c059f955fd9f4c44812ca8b26528f30d0d4a9b5dc911259c456885050283af32"
+    )
+
+
+def test_previous_monitoring_wheel_preserved():
+    previous = WHEEL.parent / "smart_cylinder_common-0.1.9-py3-none-any.whl"
+    assert hashlib.sha256(previous.read_bytes()).hexdigest() == (
+        "497fc5542799e4bd33d0501fe32e8d91b61edd6a4acbf5267ec7baca78af8b0b"
     )
 
 
@@ -208,7 +215,7 @@ print('INSTALLED STFT PASS')
 
 
 def assert_installed_contract(result):
-    assert result["version"] == result["package_version"] == "0.1.9"
+    assert result["version"] == result["package_version"] == "0.1.10"
     site = Path(result["site"]).resolve()
     assert [Path(path).resolve() for path in result["search_path"]] == [site / "system"]
     with zipfile.ZipFile(WHEEL) as archive:
@@ -225,7 +232,7 @@ def assert_installed_contract(result):
 
 def assert_source_contract(result):
     """Development selects only the canonical source, matching the release bytes."""
-    assert result["version"] == result["package_version"] == "0.1.9"
+    assert result["version"] == result["package_version"] == "0.1.10"
     assert [Path(path).resolve() for path in result["search_path"]] == [
         PROJECT_ROOT / "system"
     ]
@@ -248,7 +255,7 @@ def test_wheel_identity_and_content():
             if name.endswith("/canonical-source.json")
         )
         manifest = json.loads(archive.read(provenance_name))
-        assert manifest["version"] == "0.1.9"
+        assert manifest["version"] == "0.1.10"
         modules = {name for name in archive.namelist() if name.endswith(".py")}
         assert b"def calculate_stft(" in archive.read("system/ML/Condition/analysis.py")
         assert modules == set(manifest["files"])
@@ -322,8 +329,8 @@ def test_wrong_implementation_is_rejected():
     with pytest.raises(AssertionError):
         assert_installed_contract(
             {
-                "version": "0.1.9",
-                "package_version": "0.1.9",
+                "version": "0.1.10",
+                "package_version": "0.1.10",
                 "site": str(RENDER_ROOT / "uninstalled-site"),
                 "search_path": [str(RENDER_ROOT / "system")],
                 "modules": {},

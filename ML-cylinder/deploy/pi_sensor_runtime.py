@@ -98,6 +98,31 @@ def create_runtime():
     )
     from system.Backend.Service.cylinder_result_service import CylinderResultService
     from system.ML.Condition.analysis import WebPreviewConfig
+    from system.ML.Condition.realtime_inference import RuntimeAnalysisBridge
+
+    # Only trusted, installed policies; no assumed Reference/Threshold/model.
+    analysis = {}
+    factory_path = os.environ.get("SENSOR_ANALYSIS_FACTORY")
+    if factory_path:
+        import importlib
+
+        module, name = factory_path.split(":", 1)
+        analysis = getattr(importlib.import_module(module), name)()
+        allowed = {
+            "condition_evaluator",
+            "lifecycle_pipeline",
+            "lifecycle_input_builder",
+            "detector_factory",
+            "max_cycle_chunks",
+            "stft_detector",
+        }
+        if not isinstance(analysis, dict) or set(analysis) - allowed:
+            raise ValueError("CONFIG_REQUIRED: analysis factory contract")
+    bridge = RuntimeAnalysisBridge(
+        condition_evaluator=analysis.get("condition_evaluator"),
+        lifecycle_pipeline=analysis.get("lifecycle_pipeline"),
+        lifecycle_input_builder=analysis.get("lifecycle_input_builder"),
+    )
 
     required = (
         "COLLECTION_MODE",
@@ -156,6 +181,10 @@ def create_runtime():
             else None
         ),
         raw_collection_only=stft is None,
+        condition_predictor=bridge,
+        detector_factory=analysis.get("detector_factory"),
+        max_cycle_chunks=analysis.get("max_cycle_chunks"),
+        stft_detector=analysis.get("stft_detector"),
     )
 
 
@@ -167,8 +196,8 @@ def main():
     modes.add_argument("--operation", action="store_true")
     parser.add_argument("--env-file", default="/opt/smart-cylinder-pi5/.env")
     args = parser.parse_args()
-    if metadata.version("smart-cylinder-common") != "0.1.9":
-        print("PACKAGE_REQUIRED: smart-cylinder-common 0.1.9", flush=True)
+    if metadata.version("smart-cylinder-common") != "0.1.10":
+        print("PACKAGE_REQUIRED: smart-cylinder-common 0.1.10", flush=True)
         return 2
     lock = None
     try:
@@ -214,7 +243,26 @@ def main():
             "CONFIG_REQUIRED:", ", ".join(missing) or type(error).__name__, flush=True
         )
         return 2
-    print("CONFIG: PASS; REFERENCE_REQUIRED; MODEL_REQUIRED", flush=True)
+    print("CONFIG: PASS", flush=True)
+    print(
+        "CONDITION:",
+        (
+            "CONFIGURED; UNVERIFIED"
+            if runtime.condition_predictor.configured
+            else "MODEL_REQUIRED"
+        ),
+        "OPERATION:",
+        (
+            "CONFIGURED; UNVERIFIED"
+            if not runtime.missing_config
+            else "REFERENCE/CONFIG_REQUIRED"
+        ),
+        flush=True,
+    )
+    print(
+        "LIFECYCLE: CONNECTED; training/input data required before prediction",
+        flush=True,
+    )
     if runtime.collection_mode == "OPERATION":
         print(
             "OPERATION: RAW_OPERATION; no training label; packet RMS/Peak enabled; lifetime DATA_REQUIRED",
