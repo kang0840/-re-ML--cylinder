@@ -1915,6 +1915,8 @@ OK / NG
 
 ### 2026-10-08
 
+- **0.1.10 GitHub 반영 완료:** 새 개발 저장소 `kang0840/-re-ML--cylinder`의 `main`에 상태 판별·Weibull-AFT 연결 코드, 신규 Wheel과 관련 검증·문서 14개 파일을 Commit `ba33903`으로 Push했다. 원격 main 해시 일치를 확인했다. 실제 Pi·Render 배포는 하지 않았으며 기존 Render 연결 저장소 `kang0840/ML-cylinder`는 변경하지 않았다. 관련 없는 로컬 변경과 과거 Wheel은 보존했다.
+
 - **0.1.10 GitHub 배포 산출물 준비:** 상태 판별·Weibull-AFT 선택적 연결을 포함해 공통 패키지를 0.1.10으로 생성했다. 버전·requirements·Pi 실행기 검사·패키지 테스트를 갱신했으며 Canonical 22개 모듈과 내장 Source Manifest 일치, 분리 환경 설치 및 pip check, 통합·패키지·A/B 회귀 테스트 228개 통과/8개 건너뜀을 확인했다. Wheel SHA-256은 `3401c1ba2aa96e12b4e9d662c315e2d4424ffa9a3758a39eb6758017a3c7b9f5`다. 0.1.9 및 이전 Wheel은 보존했다. 사용자의 후속 지시로 배포 대상은 새 GitHub 저장소 `kang0840/-re-ML--cylinder`로 한정하며 Pi·Render 설치, DB/API/Web 출력 변경과 자동 학습은 하지 않는다. 실제 판별 정책·학습 모델·수명 데이터 주입과 장비 검증은 남아 있다.
 
 - **상태 판별·수명 모델 연결 준비:** Canonical `realtime_inference.py`에 `RuntimeAnalysisBridge`를 추가하고 Pi Adapter의 Condition 호출부에 연결했다. 외부 `SENSOR_ANALYSIS_FACTORY=설치된모듈:함수`가 검증된 판별 기준, Cycle/STFT 검출기, 학습된 WeibullPipeline과 수명 입력 builder를 제공한다. 완료 동작 구간의 특징에서 상태 판별 후 수명 모델의 predict만 호출하며 자동 학습·가짜 기준값·수명 출력은 만들지 않는다. 모델/데이터 누락은 DATA_REQUIRED/TRAINING_NOT_AVAILABLE로 유지하고 수명 오류는 상태 판별을 중단하지 않는다. 수명 결과는 Runtime 메모리와 상태 로그에만 남기며 평균 수명이 아닌 기존 중앙값 수명 계약을 유지한다. 관련 통합 테스트 148개 통과, 실제 장비/데이터 필요 8개 건너뜀. DB/API/Web 변경, Wheel 재생성, Git Push와 Pi/Render 배포는 하지 않았다. 실제 동작 구간·정상 기준·모델·수명 데이터의 준비 및 주입은 남아 있다.
