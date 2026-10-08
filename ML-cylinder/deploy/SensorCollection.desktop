@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Smart Cylinder Sensor Collection
+Comment=Select experiment ID and NORMAL or SEAL_LEAK before collecting Raw data
+Exec=/home/mother/Desktop/run_sensor_collection.sh
+Path=/opt/smart-cylinder-pi5
+Terminal=true
+Icon=utilities-terminal
+Categories=Utility;

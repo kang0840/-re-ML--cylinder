@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Smart Cylinder Pico Monitor
+Comment=Open the read-only Pico communication and sensor monitor
+Exec=/home/mother/Desktop/run_pico_monitor.sh
+Icon=utilities-terminal
+Terminal=true
+Categories=Utility;

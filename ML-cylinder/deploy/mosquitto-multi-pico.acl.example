@@ -1,0 +1,21 @@
+# Pi 5 collector: can see every device, but cannot impersonate a Pico.
+user pi5_receiver
+topic read cylinder/+/sensor
+topic read cylinder/+/status
+
+# Each Pico may publish only its own retained status and sensor data.
+user pico01
+topic write cylinder/pico01/sensor
+topic write cylinder/pico01/status
+
+user pico02
+topic write cylinder/pico02/sensor
+topic write cylinder/pico02/status
+
+user pico03
+topic write cylinder/pico03/sensor
+topic write cylinder/pico03/status
+
+user pico04
+topic write cylinder/pico04/sensor
+topic write cylinder/pico04/status
