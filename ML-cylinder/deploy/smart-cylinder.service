@@ -1,0 +1,23 @@
+[Unit]
+Description=Raspberry Pi 5 Smart Cylinder Collector
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=acoustic
+Group=acoustic
+WorkingDirectory=/opt/acoustic
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/etc/acoustic/analytics.env
+ExecStart=/opt/acoustic/venv/bin/python /opt/acoustic/token_main.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/acoustic /var/log/acoustic
+
+[Install]
+WantedBy=multi-user.target

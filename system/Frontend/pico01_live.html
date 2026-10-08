@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pico 01 실시간 센서 그래프</title>
+  <style>
+    :root{--bg:#071014;--panel:#101b21;--line:#263943;--text:#eaf2f5;--muted:#89a0aa;--blue:#42c7ff;--green:#3ce28b;--red:#ff626b;--yellow:#ffc04c}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}.wrap{max-width:1280px;margin:auto;padding:24px}header,.card,.note{border:1px solid var(--line);background:var(--panel);border-radius:14px}header{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:20px 24px;margin-bottom:18px}h1,h2{margin:0}.muted,.label,.note{color:var(--muted);font-size:12px}.connection{font:12px monospace;color:var(--yellow)}.ok{color:var(--green)}.bad{color:var(--red)}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{padding:18px}.value{display:block;margin-top:9px;font:700 20px monospace}.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}canvas{width:100%;height:300px;margin-top:12px;background:#081116;border-radius:8px}.legend{display:flex;gap:16px;margin-top:8px}.legend span::before{content:"";display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:50%}.legend .rms::before{background:var(--blue)}.legend .peak::before{background:var(--yellow)}.note{margin-top:18px;padding:14px 18px}@media(max-width:850px){.grid{grid-template-columns:1fr 1fr}.charts{grid-template-columns:1fr}}@media(max-width:600px){header{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <h1>Pico 01 실시간 센서 그래프</h1>
+        <div class="muted">cylinder_01 · MQTT 메시지 단위 · 비저장 시연 화면</div>
+      </div>
+      <div id="connection" class="connection">연결 확인 중</div>
+    </header>
+    <section class="grid">
+      <article class="card"><span class="label">Sequence</span><strong id="sequence" class="value">--</strong></article>
+      <article class="card"><span class="label">SPH0645 RMS</span><strong id="sphRms" class="value">--</strong></article>
+      <article class="card"><span class="label">SPH0645 Peak</span><strong id="sphPeak" class="value">--</strong></article>
+      <article class="card"><span class="label">INMP441 RMS</span><strong id="inmpRms" class="value">--</strong></article>
+      <article class="card"><span class="label">INMP441 Peak</span><strong id="inmpPeak" class="value">--</strong></article>
+      <article class="card"><span class="label">Pico 측정 시각</span><strong id="measuredAt" class="value">--</strong></article>
+      <article class="card"><span class="label">Pi 수신 시각</span><strong id="receivedAt" class="value">--</strong></article>
+      <article class="card"><span class="label">표시 데이터</span><strong id="pointCount" class="value">0</strong></article>
+    </section>
+    <section class="charts">
+      <article class="card">
+        <h2>SPH0645</h2>
+        <div class="legend"><span class="rms">RMS</span><span class="peak">Peak</span></div>
+        <canvas id="sphChart"></canvas>
+      </article>
+      <article class="card">
+        <h2>INMP441</h2>
+        <div class="legend"><span class="rms">RMS</span><span class="peak">Peak</span></div>
+        <canvas id="inmpChart"></canvas>
+      </article>
+    </section>
+    <div id="note" class="note">Pico 01 메시지를 기다리는 중입니다.</div>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const STALE_AFTER_MS = 5000;
+
+    function value(number)
+    {
+      const parsed = Number(number);
+      return Number.isFinite(parsed) ? parsed.toFixed(2) : '--';
+    }
+
+    function timeText(timestamp)
+    {
+      if (!timestamp)
+      {
+        return '--';
+      }
+      const date = new Date(timestamp);
+      return Number.isNaN(date.getTime())
+        ? '--'
+        : date.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    }
+
+    function setConnection(ok, message)
+    {
+      $('connection').className = `connection ${ok ? 'ok' : 'bad'}`;
+      $('connection').textContent = message;
+    }
+
+    function draw(canvas, series)
+    {
+      const ratio = devicePixelRatio || 1;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      const context = canvas.getContext('2d');
+      context.scale(ratio, ratio);
+      const padding = { left: 48, right: 14, top: 14, bottom: 24 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+      const values = series.flatMap(line => line.values).filter(Number.isFinite);
+      const maximum = Math.max(1, ...values);
+      context.strokeStyle = '#203039';
+      context.fillStyle = '#89a0aa';
+      context.font = '11px monospace';
+      for (let index = 0; index < 5; index += 1)
+      {
+        const y = padding.top + plotHeight * index / 4;
+        const label = maximum * (4 - index) / 4;
+        context.beginPath();
+        context.moveTo(padding.left, y);
+        context.lineTo(width - padding.right, y);
+        context.stroke();
+        context.fillText(label.toFixed(0), 3, y + 4);
+      }
+      series.forEach(line =>
+      {
+        context.strokeStyle = line.color;
+        context.lineWidth = 2;
+        context.beginPath();
+        line.values.forEach((point, index) =>
+        {
+          const x = padding.left + plotWidth * index / Math.max(line.values.length - 1, 1);
+          const y = padding.top + (maximum - point) / maximum * plotHeight;
+          if (index === 0)
+          {
+            context.moveTo(x, y);
+          }
+          else
+          {
+            context.lineTo(x, y);
+          }
+        });
+        context.stroke();
+      });
+    }
+
+    function render(data)
+    {
+      const points = data.points || [];
+      const latest = data.latest;
+      if (!data.mqtt_connected)
+      {
+        setConnection(false, 'MQTT 연결 안 됨');
+      }
+      else if (!latest)
+      {
+        setConnection(false, 'MQTT 연결됨 · Pico 01 데이터 대기');
+      }
+      else
+      {
+        const age = Date.now() - new Date(latest.received_at).getTime();
+        setConnection(age <= STALE_AFTER_MS, age <= STALE_AFTER_MS ? 'Pico 01 수신 중' : 'Pico 01 수신 중단');
+      }
+      if (!latest)
+      {
+        $('note').textContent = data.last_error || 'Pico 01 메시지를 기다리는 중입니다.';
+        return;
+      }
+      $('sequence').textContent = latest.sequence_id;
+      $('sphRms').textContent = value(latest.sph0645_rms);
+      $('sphPeak').textContent = value(latest.sph0645_peak);
+      $('inmpRms').textContent = value(latest.inmp441_rms);
+      $('inmpPeak').textContent = value(latest.inmp441_peak);
+      $('measuredAt').textContent = timeText(latest.measured_at);
+      $('receivedAt').textContent = timeText(latest.received_at);
+      $('pointCount').textContent = points.length;
+      draw($('sphChart'), [
+        { values: points.map(point => Number(point.sph0645_rms)), color: '#42c7ff' },
+        { values: points.map(point => Number(point.sph0645_peak)), color: '#ffc04c' },
+      ]);
+      draw($('inmpChart'), [
+        { values: points.map(point => Number(point.inmp441_rms)), color: '#42c7ff' },
+        { values: points.map(point => Number(point.inmp441_peak)), color: '#ffc04c' },
+      ]);
+      $('note').textContent = data.last_error || `최근 ${points.length}개 MQTT 메시지 · Session ${latest.session_id}`;
+    }
+
+    async function refresh()
+    {
+      try
+      {
+        const response = await fetch('/api/live', { cache: 'no-store' });
+        if (!response.ok)
+        {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        render(await response.json());
+      }
+      catch (error)
+      {
+        setConnection(false, 'Pi 웹 서버 연결 오류');
+        $('note').textContent = error.message;
+      }
+    }
+
+    addEventListener('resize', refresh);
+    refresh();
+    setInterval(refresh, 500);
+  </script>
+</body>
+</html>

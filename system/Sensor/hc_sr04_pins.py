@@ -1,0 +1,10 @@
+"""BCM GPIO pin assignments for the three Raspberry Pi HC-SR04 sensors."""
+
+HC_SR04_1_TRIGGER_PIN = 17
+HC_SR04_1_ECHO_PIN = 27
+
+HC_SR04_2_TRIGGER_PIN = 22
+HC_SR04_2_ECHO_PIN = 23
+
+HC_SR04_3_TRIGGER_PIN = 24
+HC_SR04_3_ECHO_PIN = 25

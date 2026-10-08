@@ -1,0 +1,4 @@
+# YOLO camera add-ons. Install requirements.txt first.
+# Install Picamera2 from apt (not pip); see docs/raspberry_pi5_yolo.md.
+opencv-python-headless>=4.10,<5
+ultralytics>=8.3,<9

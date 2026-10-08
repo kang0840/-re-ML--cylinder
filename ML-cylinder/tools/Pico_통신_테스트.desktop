@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Pico 통신 테스트
+Comment=전체 Pico MQTT 통신 상태 확인
+Exec=lxterminal -e /opt/acoustic/tools/pico_status_launcher.sh
+Icon=network-wireless
+Terminal=false
+Categories=System;Network;
