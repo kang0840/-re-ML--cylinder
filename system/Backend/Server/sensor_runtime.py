@@ -258,6 +258,7 @@ class SensorRuntime:
         self.status = "READY" if not self.missing_config else "CONFIG_REQUIRED"
         self.last_error = None
         self.last_result = None
+        self.last_lifecycle_result = {"status": "DATA_REQUIRED"}
 
     @property
     def missing_config(self):
@@ -725,6 +726,7 @@ class SensorRuntime:
             ml_status=(
                 "MODEL_REQUIRED"
                 if self.condition_predictor is None
+                or not getattr(self.condition_predictor, "configured", True)
                 else "WAITING_FOR_OPERATION"
             ),
             stft_preview=None,
@@ -827,6 +829,14 @@ class SensorRuntime:
         )
         features = extractor.extract(samples["sph0645"], samples["inmp441"])
         condition = self.condition_predictor(features, model_features)
+        self.last_lifecycle_result = deepcopy(
+            getattr(
+                self.condition_predictor,
+                "last_lifecycle_result",
+                {"status": "DATA_REQUIRED"},
+            )
+        )
+        self._event("LIFECYCLE_" + self.last_lifecycle_result["status"])
         if not condition.get("ready", False):
             self.status = "MODEL_REQUIRED"
             return

@@ -19,6 +19,8 @@ RMS
 현재 부족한 것은 실제 고장 시점, 누적 가동시간, censored 관측 등을 포함한 **수명 학습·검증 데이터**이다.
 
 ## 검증
+2026-10-08: Condition의 RuntimeAnalysisBridge에서 이미 학습된 파이프라인의 `predict()`만 호출한다. 센서 Worker에서 학습하지 않으며 원본 라벨로 수명 값을 추정하거나 가짜 고장 시점을 만들지 않는다. 현재 출력은 `median_duration_from_prediction_origin`으로 평균 수명/조건부 잔여수명과 다르다. 결과는 Runtime 메모리에만 보관하며 DB/API/Web 출력과 Pi 배포는 미연결·미검증 상태로 유지한다.
+
 ```powershell
 cd "C:\Smart Cylinder Case\system\ML\WeibullAFT"
 python -m black --check .

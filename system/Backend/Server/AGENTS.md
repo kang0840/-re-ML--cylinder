@@ -19,6 +19,10 @@ Render
 `sensor_runtime.py`는 MQTT wire 메시지를 제한된 Queue에 넣고 단일 순서 보장 Worker에서 기존 Parser·저장 Service·실시간 Buffer·Canonical STFT 계산을 호출한다. Queue/payload/세션 Dedup/센서별 Buffer 크기와 만료·종료 시간은 외부 `RealtimeConfig`를 필수로 받는다. 누락·세션 변경·입력 손실은 연속 Buffer를 끊고, 초과·만료·분석 오류는 로그와 카운터로 보고한다. 센서 timestamp와 STFT 상대 시간축을 구분하고 최근 장치별 계산 결과만 Memory에 유지한다. Reference가 없으면 REFERENCE_REQUIRED이며 동작 구간·Prediction을 생성하지 않는다. 실제 Pi 성능·배포·기준 Pattern·Threshold·Web 연결 완료를 의미하지 않는다.
 
 ## 검증
+2026-10-08 후속 승인: 연결 코드는 신규 불변 Wheel 0.1.10으로 패키징하며 Pi Adapter 버전 검사도 0.1.10을 사용한다. 이번 배포 대상은 새 GitHub 저장소에 한정한다. Pi/Render 실제 설치 및 정책·모델 주입 완료와 구분한다. 기존 0.1.9 및 이전 Wheel은 보존한다.
+
+2026-10-08: Pi Adapter는 RuntimeAnalysisBridge를 Condition 호출부에 연결한다. 외부 `SENSOR_ANALYSIS_FACTORY`는 검증된 condition_evaluator, lifecycle_pipeline, lifecycle_input_builder, detector_factory, max_cycle_chunks, stft_detector를 선택적으로 제공한다. 없는 정책·Reference·모델은 자동 생성하지 않는다. 수명 결과는 `last_lifecycle_result` 메모리 상태 및 상태 로그로 분리하며 DB 구조·API·웹 출력 변경은 없다. 로컬 소스 연결이며 기존 불변 Wheel과 실제 Pi 실행 파일은 변경하지 않는다.
+
 0.1.7 OPERATION은 STFT·Model 설정이 없어도 Raw 저장 후 ML 공통 함수로 패킷별 평균 제거 RMS·Peak를 계산하여 `runtime.packet_metrics`에 기록한다. MQTT 원본과 학습·Cycle 특징은 수정하지 않는다. 계산·저장 오류는 로그로 보고한다. Pi Adapter의 `--operation`은 기존 외부 설정을 읽고 TRAINING 라벨을 제거하며 학습 모드와 동시에 선택할 수 없다.
 
 0.1.6 Runtime은 원본 Raw 저장 경로를 유지하고 STFT 분석 Buffer의 복사본만 공통 평균 제거 함수로 전처리한다. Cycle 특징도 같은 ML 전처리 함수를 사용하며 Saved Model의 전처리 계약이 없으면 MODEL_REQUIRED로 처리한다. 실제 Pi 배포와 Web 표시 검증은 설치·자동 테스트와 구분한다.

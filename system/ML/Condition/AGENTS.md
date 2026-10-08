@@ -49,6 +49,8 @@ RMS/FFT/Feature/Baseline/Detection을 별도 하위 폴더로 나누지 않는�
 최종 모델 검증 전 동일 센서와 동일 장착 조건에서 NORMAL과 SEAL_LEAK 데이터를 교차 수집하여 장치 편향 여부를 검증한다.
 
 ## Ground Truth / Prediction
+2026-10-08: `realtime_inference.py`의 `RuntimeAnalysisBridge`는 외부에서 제공한 ConditionEvaluator와 학습된 WeibullPipeline을 완료 Cycle 특징에 연결한다. 검증된 정책은 Pi 실행기의 `SENSOR_ANALYSIS_FACTORY=설치된모듈:함수`로 주입하며 기본 판별 기준·자동 학습·수명 변환을 만들지 않는다. 수명 입력 builder는 예측 기준 시점에 알 수 있는 특징만 구성하고, 데이터/모델 미준비 시 미확정 상태를 유지한다. 수명 결과는 Condition 및 Ground Truth와 분리하고 수명 계산 오류는 Condition 결과를 제거하지 않는다.
+
 ```text
 Ground Truth = 실제 실험 조건
 Prediction   = 시스템 판정

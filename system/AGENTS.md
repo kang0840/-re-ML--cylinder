@@ -116,6 +116,8 @@ Python은 Black을 사용한다. JavaScript에서 블록 스타일이 필요한 
 코드 스타일은 기존 naming을 유지하고 함수와 클래스의 책임을 분리한다. 불필요한 helper/utils 파일이나 하나의 작은 함수를 위한 폴더를 생성하지 않는다.
 
 ## 구조 변경 규칙
+2026-10-08 후속 승인: 상태 판별·Weibull-AFT 선택적 Runtime 연결의 공통 패키지는 0.1.10이다. 이전 Wheel은 보존하고 GitHub 업로드와 Pi/Render 실제 설치를 구분한다. 기준·모델·실제 수명 데이터 없는 예측은 생성하지 않는다.
+
 2026-10-08: DB 조회 투영·동일 세션 결과 재사용·Preview 정리 조회 축소와 DB 조회 완료 후 LIVE 시각 판정을 포함한 공통 배포 산출물은 0.1.9다. 기존 Wheel은 불변으로 보존하며 패키지 생성·로컬 설치 검증과 Pi/Render 실제 배포 완료를 구분한다.
 
 2026-10-06 사용자 후속 결정: 실제 수집·분석 원본은 Canonical `system/`이며 `sensor_runtime.py`와 배포 Adapter `ML-cylinder/deploy/pi_sensor_runtime.py`를 사용한다. `token_main.py`는 수정·Import·기능 복사하지 않는 LEGACY / ROLLBACK ONLY다. Smart Cylinder Pico Monitor는 read-only 통신 확인용으로 유지한다. 파일 존재·Package 설치와 실제 Service 실행을 구분하고, Pi 전환 및 실제 Raw 저장·라벨 검증 전 본 수집 준비 완료로 보고하지 않는다.

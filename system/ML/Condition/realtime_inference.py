@@ -20,6 +20,59 @@ class ModelContractError(RuntimeError):
     """Raised when a saved model does not match its approved input contract."""
 
 
+class RuntimeAnalysisBridge:
+    """Connect approved Cycle criteria to an optional trained lifecycle pipeline.
+
+    No automatic training, default thresholds or conversion of labels to lifetime.
+    The input builder supplies features known at the model's prediction origin.
+    Lifecycle output remains separate from Condition and Ground Truth.
+    """
+
+    preprocessing_version = PREPROCESSING_VERSION
+
+    def __init__(
+        self,
+        condition_evaluator=None,
+        lifecycle_pipeline=None,
+        lifecycle_input_builder=None,
+    ):
+        self.condition_evaluator = condition_evaluator
+        self.lifecycle_pipeline = lifecycle_pipeline
+        self.lifecycle_input_builder = lifecycle_input_builder
+        self.last_condition = None
+        self.last_lifecycle_result = {"status": "DATA_REQUIRED"}
+
+    @property
+    def configured(self):
+        return self.condition_evaluator is not None
+
+    def __call__(self, features, model_features):
+        self.last_lifecycle_result = {"status": "DATA_REQUIRED"}
+        self.last_condition = {"ready": False, "prediction": None}
+        if self.condition_evaluator is None:
+            return self.last_condition
+        condition = self.condition_evaluator.evaluate(features)
+        self.last_condition = condition
+        if not condition.get("ready", False):
+            return condition
+        if self.lifecycle_pipeline is None or self.lifecycle_input_builder is None:
+            return condition
+        try:
+            # Never fit a model in the sensor processing worker.
+            rows = self.lifecycle_input_builder(features, model_features)
+            if rows is not None:
+                self.last_lifecycle_result = self.lifecycle_pipeline.predict(rows)
+        except Exception as error:
+            self.last_lifecycle_result = {
+                "status": "LIFECYCLE_ERROR",
+                "error_type": type(error).__name__,
+            }
+            import logging
+
+            logging.getLogger(__name__).warning("LIFECYCLE_ANALYSIS_FAILED")
+        return condition
+
+
 def load_existing_three_model_engine(model_project_path=None):
     """Load the existing ML-cylinder engine without copying its model logic."""
     configured_path = model_project_path or os.environ.get(

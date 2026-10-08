@@ -252,7 +252,7 @@ def test_operation_adapter_clears_training_settings(monkeypatch, capsys):
     monkeypatch.setenv("TRAINING_CYLINDER_ID", "cylinder_01")
     monkeypatch.setenv("COLLECTION_EXPERIMENT_ID", "old-experiment")
     monkeypatch.setattr(
-        adapter["main"].__globals__["metadata"], "version", lambda _: "0.1.9"
+        adapter["main"].__globals__["metadata"], "version", lambda _: "0.1.10"
     )
     monkeypatch.setattr(
         __import__("sys"), "argv", ["adapter", "--operation", "--check-config"]
@@ -1922,3 +1922,122 @@ def test_hardware_required(target):
 
 def test_real_weibull_training_requires_data():
     pytest.skip("DATA REQUIRED: actual lifecycle observations unavailable")
+
+
+def test_analysis_bridge_missing_data_never_invents_outputs():
+    from system.ML.Condition.realtime_inference import RuntimeAnalysisBridge
+
+    bridge = RuntimeAnalysisBridge()
+    assert bridge({}, {}) == {"ready": False, "prediction": None}
+    assert not bridge.configured
+    assert bridge.last_lifecycle_result == {"status": "DATA_REQUIRED"}
+
+
+def test_analysis_bridge_condition_without_lifecycle():
+    from system.ML.Condition.analysis import ConditionEvaluator
+    from system.ML.Condition.realtime_inference import RuntimeAnalysisBridge
+
+    bridge = RuntimeAnalysisBridge(ConditionEvaluator({"rms": 10}, {"rms": 2}))
+    assert bridge({"rms": 13}, {})["prediction"] == "ABNORMAL"
+    assert bridge.last_lifecycle_result == {"status": "DATA_REQUIRED"}
+    assert bridge({"rms": 10}, {})["prediction"] == "NORMAL"
+
+
+def test_analysis_bridge_calls_trained_lifecycle_without_training():
+    from unittest.mock import Mock
+    from system.ML.Condition.analysis import ConditionEvaluator
+    from system.ML.Condition.realtime_inference import RuntimeAnalysisBridge
+
+    pipeline = Mock()
+    pipeline.predict.return_value = {
+        "status": "PREDICTED",
+        "median_duration_from_prediction_origin": [12],
+    }
+    bridge = RuntimeAnalysisBridge(
+        ConditionEvaluator({"rms": 10}, {"rms": 2}),
+        pipeline,
+        lambda features, model: [{"rms": features["rms"]}],
+    )
+    bridge({"rms": 10}, {})
+    pipeline.predict.assert_called_once_with([{"rms": 10}])
+    pipeline.train.assert_not_called()
+    assert bridge.last_lifecycle_result["median_duration_from_prediction_origin"] == [
+        12
+    ]
+
+
+def test_analysis_bridge_lifecycle_failure_preserves_condition():
+    from unittest.mock import Mock
+    from system.ML.Condition.analysis import ConditionEvaluator
+    from system.ML.Condition.realtime_inference import RuntimeAnalysisBridge
+
+    pipeline = Mock()
+    pipeline.predict.side_effect = ValueError("synthetic test error")
+    bridge = RuntimeAnalysisBridge(
+        ConditionEvaluator({"rms": 10}, {"rms": 2}),
+        pipeline,
+        lambda features, model: [{"rms": features["rms"]}],
+    )
+    assert bridge({"rms": 10}, {})["prediction"] == "NORMAL"
+    assert bridge.last_lifecycle_result == {
+        "status": "LIFECYCLE_ERROR",
+        "error_type": "ValueError",
+    }
+
+
+def test_completed_cycle_reaches_condition_and_lifecycle_bridge():
+    from unittest.mock import Mock
+    from system.ML.Condition.realtime_inference import RuntimeAnalysisBridge
+
+    evaluator = Mock()
+    evaluator.evaluate.return_value = {"ready": True, "prediction": "NORMAL"}
+    pipeline = Mock()
+    pipeline.predict.return_value = {"status": "TRAINING_NOT_AVAILABLE"}
+    bridge = RuntimeAnalysisBridge(evaluator, pipeline, lambda f, m: [{"rms": 1}])
+    repo = Repository()
+    rt = runtime(repo, condition=bridge)
+    complete(rt, payload())
+    assert rt.status == "STORED"
+    assert len(repo.results) == 1
+    pipeline.predict.assert_called_once()
+    assert bridge.last_lifecycle_result["status"] == "TRAINING_NOT_AVAILABLE"
+
+
+def test_pi_adapter_injects_analysis_factory(monkeypatch):
+    import json
+    import runpy
+    import sys
+    import types
+    from pathlib import Path
+    from unittest.mock import Mock
+
+    adapter = runpy.run_path(
+        str(Path(__file__).parents[1] / "deploy/pi_sensor_runtime.py")
+    )
+    policy = types.ModuleType("test_approved_analysis_policy")
+    evaluator = Mock()
+    pipeline = Mock()
+    detector_factory = Mock()
+    stft_detector = Mock()
+    builder = Mock()
+    policy.create = lambda: dict(
+        condition_evaluator=evaluator,
+        lifecycle_pipeline=pipeline,
+        lifecycle_input_builder=builder,
+        detector_factory=detector_factory,
+        max_cycle_chunks=10,
+        stft_detector=stft_detector,
+    )
+    monkeypatch.setitem(sys.modules, policy.__name__, policy)
+    monkeypatch.setenv("SENSOR_ANALYSIS_FACTORY", policy.__name__ + ":create")
+    monkeypatch.setenv("COLLECTION_MODE", "TEST")
+    monkeypatch.setenv("SENSOR_REALTIME_CONFIG", json.dumps(vars(realtime_limits())))
+    for key in ("MQTT_PASSWORD", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"):
+        monkeypatch.setenv(key, "synthetic-test-value")
+    for key in ("SENSOR_STFT_CONFIG", "SENSOR_PREVIEW_CONFIG"):
+        monkeypatch.delenv(key, raising=False)
+    rt = adapter["create_runtime"]()
+    assert rt.condition_predictor.condition_evaluator is evaluator
+    assert rt.condition_predictor.lifecycle_pipeline is pipeline
+    assert rt.detector_factory is detector_factory
+    assert rt.stft_detector is stft_detector
