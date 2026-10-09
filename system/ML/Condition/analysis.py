@@ -1,6 +1,6 @@
 """Cycle-level feature extraction, normal baseline, and condition interfaces."""
 
-from math import sqrt
+from math import isfinite, sqrt
 from dataclasses import dataclass
 from collections.abc import Mapping
 from numbers import Integral, Real
@@ -399,13 +399,24 @@ class ConditionEvaluator:
     def evaluate(self, features):
         if self._normal_baseline is None or self._allowed_deviation is None:
             return {"prediction": None, "leakage_score": None, "ready": False}
+        for values in (self._normal_baseline, self._allowed_deviation, features):
+            if not isinstance(values, Mapping) or not values:
+                raise ValueError("condition inputs must be non-empty mappings")
+        if self._damaged_baseline is not None and not isinstance(
+            self._damaged_baseline, Mapping
+        ):
+            raise ValueError("damaged baseline must be a mapping")
         deviations = []
         for name, tolerance in self._allowed_deviation.items():
+            if name not in features or name not in self._normal_baseline:
+                raise ValueError("required condition feature is missing")
+            for value in (tolerance, features[name], self._normal_baseline[name]):
+                self._validate_value(value)
             if tolerance <= 0:
                 raise ValueError("allowed deviations must be positive")
-            deviations.append(
-                abs(features[name] - self._normal_baseline[name]) / tolerance
-            )
+            deviation = abs(features[name] - self._normal_baseline[name]) / tolerance
+            self._validate_value(deviation)
+            deviations.append(deviation)
         prediction = (
             "ABNORMAL" if any(value > 1.0 for value in deviations) else "NORMAL"
         )
@@ -415,6 +426,15 @@ class ConditionEvaluator:
             "ready": True,
         }
 
+    @staticmethod
+    def _validate_value(value):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, Real)
+            or not isfinite(value)
+        ):
+            raise ValueError("condition values must be finite real numbers")
+
     def _leakage_score(self, features):
         if self._damaged_baseline is None:
             return None
@@ -422,10 +442,19 @@ class ConditionEvaluator:
         for name, normal_value in self._normal_baseline.items():
             if name not in self._damaged_baseline or name not in features:
                 continue
+            for value in (normal_value, self._damaged_baseline[name], features[name]):
+                self._validate_value(value)
             denominator = self._damaged_baseline[name] - normal_value
+            self._validate_value(denominator)
             if denominator:
-                values.append((features[name] - normal_value) / denominator * 100.0)
-        return sum(values) / len(values) if values else None
+                score = (features[name] - normal_value) / denominator * 100.0
+                self._validate_value(score)
+                values.append(score)
+        if not values:
+            return None
+        score = sum(value / len(values) for value in values)
+        self._validate_value(score)
+        return score
 
 
 def make_backend_result(
