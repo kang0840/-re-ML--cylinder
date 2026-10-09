@@ -1,5 +1,78 @@
 """Synthetic interface tests only; no hardware or live DB writes."""
 
+import pytest
+
+
+def test_condition_evaluator_missing_policy_is_not_a_normal_prediction():
+    from system.ML.Condition.analysis import ConditionEvaluator
+
+    assert ConditionEvaluator().evaluate({}) == {
+        "prediction": None,
+        "leakage_score": None,
+        "ready": False,
+    }
+
+
+@pytest.mark.parametrize(
+    "baseline,tolerances,features",
+    [
+        ({}, {}, {}),
+        ({"rms": 10}, {}, {"rms": 10}),
+        ({"rms": 10}, {"rms": 2}, {}),
+        ({"other": 10}, {"rms": 2}, {"rms": 10}),
+        ({"rms": 10}, {"rms": 2}, {"other": 10}),
+        ([], {"rms": 2}, {"rms": 10}),
+        ({"rms": 10}, [], {"rms": 10}),
+        ({"rms": 10}, {"rms": 2}, []),
+    ],
+)
+def test_condition_evaluator_rejects_empty_or_missing_inputs(
+    baseline, tolerances, features
+):
+    from system.ML.Condition.analysis import ConditionEvaluator
+
+    with pytest.raises(ValueError):
+        ConditionEvaluator(baseline, tolerances).evaluate(features)
+
+
+@pytest.mark.parametrize(
+    "bad", [float("nan"), float("inf"), -float("inf"), True, "10", None]
+)
+@pytest.mark.parametrize("field", ["baseline", "tolerance", "feature", "damaged"])
+def test_condition_evaluator_rejects_nonfinite_or_nonnumeric_inputs(bad, field):
+    from system.ML.Condition.analysis import ConditionEvaluator
+
+    values = dict(baseline=10, tolerance=2, feature=11, damaged=20)
+    values[field] = bad
+    with pytest.raises(ValueError):
+        ConditionEvaluator(
+            {"rms": values["baseline"]},
+            {"rms": values["tolerance"]},
+            {"rms": values["damaged"]},
+        ).evaluate({"rms": values["feature"]})
+
+
+@pytest.mark.parametrize("tolerance", [0, -1, -2.0])
+def test_condition_evaluator_rejects_nonpositive_tolerance(tolerance):
+    from system.ML.Condition.analysis import ConditionEvaluator
+
+    with pytest.raises(ValueError):
+        ConditionEvaluator({"rms": 10}, {"rms": tolerance}).evaluate({"rms": 10})
+
+
+def test_condition_evaluator_preserves_boundary_and_rejects_overflow():
+    from system.ML.Condition.analysis import ConditionEvaluator
+
+    evaluator = ConditionEvaluator({"rms": 10}, {"rms": 2}, {"rms": 20})
+    assert evaluator.evaluate({"rms": 12}) == {
+        "prediction": "NORMAL",
+        "ready": True,
+        "leakage_score": 20.0,
+    }
+    assert evaluator.evaluate({"rms": 12.1})["prediction"] == "ABNORMAL"
+    with pytest.raises(ValueError):
+        ConditionEvaluator({"rms": -1e308}, {"rms": 1}).evaluate({"rms": 1e308})
+
 
 def test_confirmed_session_cache_is_bounded_and_rejects_label_change():
     from unittest.mock import MagicMock
@@ -132,7 +205,6 @@ from copy import deepcopy
 import struct
 from uuid import uuid4
 
-import pytest
 import numpy as np
 from system.MQTT.message_parser import parse_payload
 
@@ -1943,6 +2015,24 @@ def test_analysis_bridge_condition_without_lifecycle():
     assert bridge({"rms": 10}, {})["prediction"] == "NORMAL"
 
 
+def test_analysis_bridge_invalid_condition_never_calls_lifecycle():
+    from unittest.mock import Mock
+    from system.ML.Condition.analysis import ConditionEvaluator
+    from system.ML.Condition.realtime_inference import RuntimeAnalysisBridge
+
+    pipeline = Mock()
+    bridge = RuntimeAnalysisBridge(
+        ConditionEvaluator({"rms": 10}, {"rms": 2}),
+        pipeline,
+        lambda features, model: [{"rms": features["rms"]}],
+    )
+    with pytest.raises(ValueError):
+        bridge({"rms": float("nan")}, {})
+    assert bridge.last_condition == {"ready": False, "prediction": None}
+    pipeline.predict.assert_not_called()
+    assert bridge({"rms": 10}, {})["prediction"] == "NORMAL"
+
+
 def test_analysis_bridge_calls_trained_lifecycle_without_training():
     from unittest.mock import Mock
     from system.ML.Condition.analysis import ConditionEvaluator
@@ -2001,6 +2091,27 @@ def test_completed_cycle_reaches_condition_and_lifecycle_bridge():
     assert len(repo.results) == 1
     pipeline.predict.assert_called_once()
     assert bridge.last_lifecycle_result["status"] == "TRAINING_NOT_AVAILABLE"
+
+
+def test_invalid_condition_policy_isolated_and_next_cycle_can_run():
+    from system.ML.Condition.analysis import ConditionEvaluator
+    from system.ML.Condition.realtime_inference import RuntimeAnalysisBridge
+
+    bridge = RuntimeAnalysisBridge(ConditionEvaluator({}, {}))
+    repo = Repository()
+    rt = runtime(repo, condition=bridge)
+    row = payload()
+    complete(rt, row)
+    assert rt.status == "CYCLE_FAILED"
+    assert rt.last_error == "ValueError"
+    assert not repo.results
+    bridge.condition_evaluator = ConditionEvaluator(
+        {"inmp441_rms": 0}, {"inmp441_rms": 1e12}
+    )
+    row["sequence_id"] = 3
+    complete(rt, row)
+    assert rt.status == "STORED"
+    assert len(repo.results) == 1
 
 
 def test_pi_adapter_injects_analysis_factory(monkeypatch):
