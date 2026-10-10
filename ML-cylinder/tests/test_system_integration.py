@@ -1098,7 +1098,11 @@ box.preview={relative_times:[0.1,0.2,0.5],frequencies:[0,100,400],magnitude:[[1,
 const before=JSON.stringify(box.preview);
 vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),preview)',box);
 assert.equal(JSON.stringify(box.preview),before);
-assert(texts.some(v=>v.text==='측정 구간 내부 시간 (초)'));
+const timeTitle=texts.find(v=>v.text==='구간 내 경과 시간(초)');
+assert(timeTitle && timeTitle.y>30 && timeTitle.y<200);
+assert(texts.some(v=>v.text.endsWith('초') && v.y>30 && v.y<200));
+assert(rects.some(v=>v.color==='rgba(7,16,20,0.78)' && v.h===48));
+assert(texts.some(v=>v.text==='0.05초')); // actual edge, not rebased to zero
 assert(texts.some(v=>v.text==='주파수 (Hz)'));
 assert(texts.some(v=>v.text==='상대 진폭 (dB)'));
 assert(texts.some(v=>v.text.includes('0 dB =')));
@@ -1114,6 +1118,7 @@ assert.equal(elements.sph0645Preview.width,560);
 assert(texts.some(v=>v.text.includes('상대 dB 기준 없음')));
 assert(!texts.some(v=>v.text.includes('0 dB =')));
 assert(texts.every(v=>Number.isFinite(v.x)&&Number.isFinite(v.y)));
+assert(texts.filter(v=>v.text.endsWith('초')).every(v=>v.x>=62 && v.x<=210 && v.y<200));
 texts.length=0;rects.length=0;
 box.preview.relative_times=[0.1,0.1,0.5];
 vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),preview)',box);
