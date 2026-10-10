@@ -1090,6 +1090,35 @@ vm.runInContext('renderCanonical({latest})',box);
 assert.equal(elements.connection.textContent,'NO LIVE DATA');
 vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),preview)',box);
 vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),null)',box);
+// Display-only dB legend, zero handling, mobile/HiDPI and coordinate checks.
+const texts=[],rects=[];
+ctx.fillText=(text,x,y)=>texts.push({text,x,y});
+ctx.fillRect=(x,y,w,h)=>rects.push({x,y,w,h,color:ctx.fillStyle});
+box.preview={relative_times:[0.1,0.2,0.5],frequencies:[0,100,400],magnitude:[[1,0.1,0],[0,0,0],[0,0,0]]};
+const before=JSON.stringify(box.preview);
+vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),preview)',box);
+assert.equal(JSON.stringify(box.preview),before);
+assert(texts.some(v=>v.text==='측정 구간 내부 시간 (초)'));
+assert(texts.some(v=>v.text==='주파수 (Hz)'));
+assert(texts.some(v=>v.text==='상대 진폭 (dB)'));
+assert(texts.some(v=>v.text.includes('0 dB =')));
+assert.equal(rects[0].color,'rgb(253,231,37)');
+assert.equal(rects[2].color,'rgb(68,1,84)');
+assert(rects[1].w > rects[0].w); // nonuniform time centres use actual edges
+assert(rects.slice(0,9).every(v=>[v.x,v.y,v.w,v.h].every(Number.isFinite)));
+texts.length=0;rects.length=0;
+box.preview.magnitude=[[0,0,0],[0,0,0],[0,0,0]];
+box.devicePixelRatio=2;elements.sph0645Preview.clientWidth=280;
+vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),preview)',box);
+assert.equal(elements.sph0645Preview.width,560);
+assert(texts.some(v=>v.text.includes('상대 dB 기준 없음')));
+assert(!texts.some(v=>v.text.includes('0 dB =')));
+assert(texts.every(v=>Number.isFinite(v.x)&&Number.isFinite(v.y)));
+texts.length=0;rects.length=0;
+box.preview.relative_times=[0.1,0.1,0.5];
+vm.runInContext('drawSpectrogram(document.getElementById("sph0645Preview"),preview)',box);
+assert.equal(rects.length,0);
+assert(texts.some(v=>v.text.includes('형식 확인 필요')));
 """
     subprocess.run(
         ["node", "-e", harness, str(script)], check=True, capture_output=True, text=True
