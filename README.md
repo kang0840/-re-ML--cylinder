@@ -11,6 +11,9 @@
 - [05. 모델링 및 성능 검증](#05-모델링-및-성능-검증)
 - [06. 한계 및 향후 계획](#06-한계-및-향후-계획)
 - [07. 결론](#07-결론)
+- [08. 실행방법 및 사용 스택](#08-실행방법-및-사용-스택)
+- [09. AI 및 외부 자문 내역](#09-ai-및-외부-자문-내역)
+- [10. 라이선스 및 외부 구성요소](#10-라이선스-및-외부-구성요소)
 - [날짜별 작업 기록](#날짜별-작업-기록-리마인드)
 
 ## 01. 프로젝트 목적
@@ -259,7 +262,7 @@ YOLO는 독립 촬영 시험 데이터에서 클래스별 Precision·Recall, mAP
 - MQTT·Wi-Fi 비밀번호와 DB Secret은 외부 주입하고 Git·문서·로그·웹 클라이언트에 기록하지 않는다. Broker를 인터넷에 직접 공개하지 않는다.
 - DB Schema·RLS·Topic·Payload·PLC와 실제 데이터는 이번 문서 정리 및 판별기 검증 수정에서 변경하지 않는다.
 
-최신 공통 배포 산출물은 **0.1.10**이며 2026-10-08 새 GitHub 저장소에 반영했다. 실제 Pi·Render의 0.1.10 설치는 확인하지 않았다. 2026-10-09 입력 검증 수정은 로컬 소스에만 있으며 기존 0.1.10 Wheel에 포함되지 않는다. 동일 버전 Wheel을 덮어쓰지 않고 신규 버전 생성·배포는 별도 승인으로 진행한다.
+현재 준비된 공통 패키지는 **0.1.11**이다. 2026-10-12 사용자 제공 Pi 터미널 결과에서 0.1.11 재설치, pip check 및 Runtime Import 경로를 확인했다. 이 확인은 설치 결과이며 새 센서 수집·DB 저장·장시간 안정성 검증과는 구분한다. Render의 설치 버전은 별도로 확인해야 한다. 과거 버전의 작업 기록과 Wheel은 보존한다.
 
 ## 07. 결론
 
@@ -270,6 +273,126 @@ YOLO는 독립 촬영 시험 데이터에서 클래스별 Precision·Recall, mAP
 이번 프로젝트의 다음 성과 판단은 **독립 실험에서 이상 Recall·오경보율, 반복 장착 편차 및 웹 지연을 실제로 측정하는 것**이다. 장기 수명 관측이 부족한 동안에는 수명 숫자를 만들지 않는다. 최종적으로 “상태 변화를 관찰하고 검증하는 기반을 확보했으며, 검증된 상태 기준과 실제 수명 데이터가 준비되면 각 모델을 연결하는 구조”로 정리한다.
 
 ---
+
+## 08. 실행방법 및 사용 스택
+
+### 역할과 준비 사항
+
+센서 수집·STFT·특징 추출·모델 추론·판별 성능 평가는 **Raspberry Pi 5 또는 오프라인 평가 환경**에서 실행한다. Render는 저장된 결과를 조회하고 웹 화면을 제공한다. 평가 모듈이 공통 Wheel에 포함돼 있어도 Render에서 자동으로 평가를 실행하는 것은 아니다.
+
+주요 스택은 Pico W/MicroPython, Raspberry Pi 5/Python, Mosquitto/paho-mqtt, NumPy/SciPy, Supabase PostgreSQL, Flask/Gunicorn, HTML/CSS/JavaScript다. 데이터 파일 처리는 pandas/openpyxl, 기존 모델 경로는 scikit-learn/joblib 및 별도 PyCaret 실행 환경을 사용한다. 상태·수명 모델의 준비 여부는 본문의 검증 범위를 따른다.
+
+외부 심사자는 [공개 모니터링](https://ml-cylinder.onrender.com/monitoring.html)을 확인할 수 있다. 사용자가 외부 기기 접속·동작을 확인했다. 새 장비 데이터 수신과 과거 데이터 표시를 구분하며, 화면의 LIVE/STALE 및 측정 시각을 확인한다.
+
+### 심사용 웹 접속 방법
+
+1. [공개 웹 서비스](https://ml-cylinder.onrender.com/)에 접속한다.
+2. 제출물과 함께 별도로 전달한 심사용 등록 시리얼을 입력한다. 시리얼 값은 공개 README에 기재하지 않는다.
+3. 모니터링 화면에서 센서별 RMS 및 시간별 주파수 성분 그래프를 확인한다.
+4. 측정 시각과 LIVE/STALE 표시를 확인한다. STALE는 저장된 과거 측정이며 새 센서가 실시간 수신되고 있다는 뜻이 아니다.
+
+실제 센서 수집에는 Pico, Pi 및 운영 설정이 필요하다. 공개 웹 접속 확인과 실장비 수집 검증을 구분한다.
+
+개발 저장소:
+
+```bash
+git clone https://github.com/kang0840/-re-ML--cylinder.git
+cd ./-re-ML--cylinder
+```
+
+Python 3.11 이상이 공통 패키지의 요구사항이다. 실제 Pi는 Raspberry Pi OS 64-bit 환경과 센서·로컬 MQTT Broker·외부 주입된 DB/MQTT 설정이 필요하다. 현재 Pi가 없어 이번 문서의 실장비 설치·수집 실행은 재검증하지 않았다.
+
+### 장비·DB 없이 판별 성능 평가 실행
+
+프로젝트 최상위에서 실행한다. 이미 수행한 추론 결과와 별도로 확인한 정답 라벨을 비교하는 기능이며, 이 명령이 모델 추론을 대신하지 않는다.
+
+```bash
+python ML-cylinder/tools/evaluate_condition_predictions.py --input ML-cylinder/outputs/condition_evaluation_example.json
+```
+
+예시 JSON과 결과는 **합성 소프트웨어 검증 자료**다. 실제 실린더 정확도가 아니다. 입력 예시 파일이 없는 checkout에서는 [판별 성능 평가 사용법](판별성능평가_사용법.md)의 형식으로 입력을 준비한다. 실데이터 평가:
+
+```bash
+python ML-cylinder/tools/evaluate_condition_predictions.py --input /absolute/path/predictions.json --output /absolute/path/new_report.json
+```
+
+출력 부모 폴더는 미리 존재해야 하며 기존 파일은 덮어쓰지 않는다. `sample_id`, `session_id`, `ground_truth`, `prediction`, `inference_status`를 전달한다. 상태는 OK/ERROR/ABSTAIN이다. 정확도·이상 검출률·오경보율과 추론 실패·보류·평가 포함 비율을 별도 출력한다. 분모 0은 null, 비율은 0~1이다. 학습 세션과 평가 세션을 구분하고 실제 정답 출처·실험 조건을 함께 기록한다.
+
+평가용 준비 산출물은 `ML-cylinder/deploy/smart_cylinder_common-0.1.11-py3-none-any.whl`이다. 별도 기존 Python 환경에 설치할 경우:
+
+```bash
+python -m pip install --no-deps ML-cylinder/deploy/smart_cylinder_common-0.1.11-py3-none-any.whl
+python -c "from system.ML.Condition.evaluation import evaluate_predictions; print(evaluate_predictions([])['status'])"
+```
+
+기대 출력은 `NO_EVALUABLE_PREDICTIONS`다. `--no-deps`는 평가 모듈만 점검하는 설치이며 센서·웹 의존성을 설치하지 않는다. 평가 테스트 4개와 적합한 기존 의존성 환경의 통합 회귀 231개 통과/8개 건너뜀을 확인했다. 이는 실측 정확도가 아니다.
+
+### Pi 수집 실행 경로와 버전 제한
+
+2026-10-12 사용자 승인으로 `ML-cylinder/deploy/pi_sensor_runtime.py`의 버전 검사를 **0.1.11만 허용**하도록 변경했다. 0.1.11 Wheel과 수정된 실행기를 함께 배포해야 한다. 아래 명령은 0.1.11 설치 경로다. 사용자 제공 결과로 Pi 설치·Import를 확인했으며, 수집 실행과 실제 센서·DB 검증은 별도로 수행한다.
+
+```bash
+cd ML-cylinder
+python -m pip install deploy/smart_cylinder_common-0.1.11-py3-none-any.whl
+python deploy/pi_sensor_runtime.py --check-config --env-file /absolute/path/existing-external-config
+python deploy/pi_sensor_runtime.py --interactive --env-file /absolute/path/existing-external-config
+```
+
+새 Secret 저장 파일을 만들지 않는다. `--env-file`은 이미 외부에서 관리되는 운영 설정의 경로를 뜻한다. 학습 수집은 실제 장착 조건의 NORMAL/SEAL_LEAK와 새 수집 세션을 확인한 후 사용하며, 중복 수집 프로그램을 동시에 실행하지 않는다. 위 설치는 평가 환경과 분리된 기존 수집 환경을 위한 것으로 평가 전용 설치와 실제 수집 실행을 구분한다.
+
+필수 설정 이름은 `COLLECTION_MODE`, `MQTT_PASSWORD`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SENSOR_REALTIME_CONFIG`다. TRAINING은 `TRAINING_CYLINDER_ID`, `TRAINING_GROUND_TRUTH`, `COLLECTION_EXPERIMENT_ID`도 필요하다. STFT는 외부 `SENSOR_STFT_CONFIG`, 선택적인 Preview는 `SENSOR_PREVIEW_CONFIG`, 분석 연결은 `SENSOR_ANALYSIS_FACTORY`를 사용한다. 실험으로 확인되지 않은 기준·임계값·모델을 자동 생성하지 않는다. 비밀번호와 Secret 값은 Git·문서·로그·영상에 넣지 않는다.
+
+### 웹 서버 실행
+
+웹 의존성 설치는 Wheel 상대 경로 때문에 `ML-cylinder`에서 진행한다. 서버용 설정은 호스트의 환경 변수로 외부 주입한다. 프로덕션의 `DATABASE_URL`, 필요한 서버 전용 인증 설정 및 `SERIAL_CYLINDER_MAPPING`은 기존 운영 계약을 사용한다. 기존 DB Schema/RLS를 자동으로 변경하지 않는다.
+
+```bash
+cd ML-cylinder
+python -m pip install -r requirements.txt
+python server.py --host 127.0.0.1 --port 8000
+```
+
+로컬 화면은 `http://127.0.0.1:8000/monitoring.html`이다. Render의 기존 시작 명령은 `gunicorn --bind 0.0.0.0:${PORT} server:app`이다. 실제 DB 조회에는 운영 설정과 접근 가능한 DB가 필요하며, 설정 없는 실행을 운영 준비 완료로 취급하지 않는다. PyCaret 기존 모델은 Python 3.12에서 호환 오류를 확인했으므로 해당 모델 경로는 별도 호환성 점검이 필요하다.
+
+## 09. AI 및 외부 자문 내역
+
+개발자 강상훈은 **Codex 에이전트**를 코드 작성, 오류 수정, 테스트 및 문서 정리에 활용했고, 생성 결과를 직접 한 차례 검토했다. 사용한 정확한 기반 모델명은 확인되지 않았다. 이 검토는 모든 기능·보안·실장비 성능 검증 완료를 뜻하지 않는다. Codex는 개발 보조 도구이며 제품 내부 상태 판별 모델과 구분한다.
+
+**외부 자문:** 관련 분야 종사자인 가족 지인(사촌형의 배우자)에게 Codex 사용 방법과 시스템 아키텍처 보강 방향에 대해 조언받았다. 자문자의 성함·소속·구체 직무·자문 날짜는 미확인이고, 공개 동의를 확인하지 않은 개인 정보는 추가하지 않는다. 확인되지 않은 구현 기여나 성능 검증 역할을 자문 내역에 포함하지 않는다.
+
+**현장 경험자 인터뷰:** 공압 실린더 사용·관리 경험자에게 관리 방식, 누설 원인과 발견 방법, 개별 센서 장치의 현장 적용 가능성을 질문했다. 설치 공간·비용, 주변 소음과 유지보수 부담에 대한 의견을 받아 기술 구현과 현장 도입 필요성을 별도로 검증하기로 했다. 인터뷰는 경험에 기반한 자문이며 실제 장치 성능 시험이 아니다. 기술 아키텍처 자문과 동일 인물인지, 정확한 인터뷰 날짜 및 소속은 확인되지 않았다.
+
+**화면 사용성 피드백:** 평가 참여자 20명의 그래프·UI 관련 의견을 반영했다. 개선 후 긍정적 후속 회신은 5명(5/20=25%)이며 회신 비율이다. 실제 현장 운영 사용자 수나 리텐션으로 집계하지 않는다.
+
+제품 분석에 사용하는 STFT/RMS/FFT는 신호처리와 특징 추출이다. Condition 기준 비교·저장 모델과 Weibull-AFT의 구현·검증 상태는 본문과 구분해 공개한다. YOLO11n/IMX500은 별도 영상 검출 확장 후보이며 현재 음향 판별 성과로 합산하지 않는다. AI가 생성한 예측을 실제 정답 라벨로 사용하지 않는다.
+
+## 10. 라이선스 및 외부 구성요소
+
+### 프로젝트 자체 라이선스
+
+사용자 결정(2026-10-12)에 따라 프로젝트 자체 코드에는 오픈소스 라이선스를 부여하지 않는다. **All rights reserved.** 저장소 공개와 대회 심사를 위한 열람은 프로젝트 코드의 수정·재배포·상업적 사용에 대한 허가를 의미하지 않으며, 해당 사용에는 권리자의 별도 허가가 필요하다. 이 방침은 권리를 보유한 프로젝트 자체 코드에 적용하며, 외부 패키지·모델·데이터·이미지 등에는 각 권리자의 라이선스와 이용 조건이 적용된다. 로컬 파일 검색에서 별도 LICENSE 파일은 확인되지 않았으며, 현재 이 README에 프로젝트 사용 방침을 명시한다.
+
+### 외부 구성요소 출처
+
+아래는 직접 의존성과 관련 구성요소의 공식 출처다. 적용 라이선스 원문·저작권 고지·NOTICE는 실제 사용하는 버전에 포함된 파일을 기준으로 보존한다. 아래 링크가 배포물 전체의 전이 의존성 감사를 대신하지는 않는다.
+
+| 구성요소 | 용도 | 공식 출처 및 라이선스 확인 위치 |
+|---|---|---|
+| NumPy | 수치 배열·특징 계산 | [BSD 3-Clause 원문](https://github.com/numpy/numpy/blob/main/LICENSE.txt) |
+| SciPy | FFT/STFT | [라이선스 원문](https://github.com/scipy/scipy/blob/main/LICENSE.txt) |
+| Flask | 웹 API | [라이선스 원문](https://github.com/pallets/flask/blob/main/LICENSE.txt) |
+| paho-mqtt | MQTT 클라이언트 | [라이선스 원문](https://github.com/eclipse-paho/paho.mqtt.python/blob/master/LICENSE.txt) |
+| Supabase Python | DB 접근 | [공식 저장소](https://github.com/supabase/supabase-py) |
+| pandas / openpyxl | 데이터·Excel 처리 | [pandas](https://github.com/pandas-dev/pandas), [openpyxl](https://openpyxl.readthedocs.io/) |
+| scikit-learn / joblib | 기존 모델·직렬화 | [scikit-learn](https://github.com/scikit-learn/scikit-learn), [joblib](https://github.com/joblib/joblib) |
+| python-dotenv | 기존 환경 설정 코드 | [공식 저장소](https://github.com/theskumar/python-dotenv) |
+| Gunicorn / psycopg | 웹 서비스·PostgreSQL 접속 | [Gunicorn](https://github.com/benoitc/gunicorn), [psycopg](https://github.com/psycopg/psycopg) |
+| pytest | 검증 | [공식 저장소](https://github.com/pytest-dev/pytest) |
+| MicroPython / Mosquitto | Pico 실행·Pi Broker | [MicroPython](https://github.com/micropython/micropython), [Mosquitto](https://github.com/eclipse-mosquitto/mosquitto) |
+| lifelines / PyCaret | 수명 모듈·기존 모델 경로 | [lifelines](https://github.com/CamDavidsonPilon/lifelines), [PyCaret](https://github.com/pycaret/pycaret) |
+| Ultralytics / Picamera2 | 별도 영상 AI·사진 수집 확장 | [Ultralytics](https://github.com/ultralytics/ultralytics), [Picamera2](https://github.com/raspberrypi/picamera2) |
+
+모델 가중치·학습 데이터·사진·미리캔버스 발표자료·외부 자산은 코드 라이선스와 별도로 출처와 사용 권한을 확인한다. 특히 영상 AI 확장의 라이선스를 프로젝트 전체 라이선스로 대체하지 않는다. 현재 실제 설치 버전별 전이 의존성 고지와 모든 자산 권리 확인은 남아 있다.
 
 ## 날짜별 작업 기록 (리마인드)
 
@@ -349,6 +472,33 @@ YOLO는 독립 촬영 시험 데이터에서 클래스별 Precision·Recall, mAP
 
 ### 2026-10-11
 
+- **IMX500 구멍 사진 수집기:** 사용자 요청으로 기존 tools/deploy 폴더에 capture_holes_100.py와 HolePhotoCapture.desktop을 추가했다. 기존 실린더 전체 자동 라벨 촬영기는 변경하지 않았다. Picamera2·Tkinter로 Pi 화면 미리보기, 작은 구멍/큰 구멍/구멍 없음 선택, 기본 100장·1초 간격·3초 준비 대기, 진행 수·저장 위치·중지 기능을 제공한다. 2028×1520 원본 JPEG를 기존 폴더(기본 Pi Desktop)에 고유 촬영 회차명으로 배타 저장하고 새 사진 폴더·YOLO 라벨을 자동 생성하지 않는다. YOLO/RPK 모델 로드·A/B 판정·정확도·DB 연결은 없다.
+- **촬영기 검증·배포 상태:** Python 문법·설정 범위/NaN/Inf 거부·Mock 100장 출력·덮어쓰기 차단·3개 촬영 대상·자동 라벨 없음 검사를 통과했다. 합성 PIL 이미지의 실제 JPEG 저장/재읽기·크기·RGB 색 유지도 확인했다. 이는 실카메라 검증이 아니며 Pi GUI·100장 실촬영·실제 프레임 간격/색/초점·저장 장치 검증은 남아 있다. 로컬 파일 생성만 완료했고 Pi 설치·GitHub 업로드·Render 배포는 하지 않았다. 구멍 위치 라벨링·독립 촬영 회차 평가·IMX500용 새 모델 변환은 후속 작업이다.
 - **GitHub·Render 반영 완료:** 사용자 승인으로 Render 연결 저장소 `kang0840/ML-cylinder` main에 JavaScript 한 파일만 `ed72514`, 새 개발 저장소 `kang0840/-re-ML--cylinder` main에 표시·테스트·규칙·README 네 파일을 `cf46571`로 Push했다. 업로드 사본에서도 227개 통과/8개 건너뜀을 재확인했다. 배포 대기 중 구버전이 제공됐으나 후속 공개 real-monitor.js 응답 HTTP 200에서 timeAxisTop·반투명 배경·‘구간 내 경과 시간(초)’·KST를 모두 확인했다. 공개 파일 반영은 완료됐고 실제 브라우저 화면·장비 LIVE·모바일 실화면은 미검증이다.
 - **STFT 내부 시간축:** 사용자 승인으로 시간 눈금에 ‘초’를 붙이고 ‘구간 내 경과 시간(초)’ 제목과 함께 그래프 내부 하단의 반투명 어두운 띠에 표시했다. 모바일에서 첫/끝 눈금이 밖으로 나가지 않도록 정렬·최대 글자폭을 제한하고 짧은 구간에는 소수 자릿수를 조절한다. 실제 Preview 시간 좌표는 재설정하지 않았다. 그래프 위에는 측정 시각과 KST를 별도로 표시한다. 배경 띠는 표시 오버레이이며 원본·저주파 데이터·STFT 계산·API/DB·MQTT·Wheel은 변경하지 않았다.
 - **검증·배포 준비:** JavaScript 문법 검사와 Mock Canvas의 내부 제목/눈금 위치·배경 띠·실제 0.05초 시작 좌표·모바일 폭 회귀를 포함해 통합·A/B 테스트 227개 통과/8개 건너뜀을 확인했다. 사용자가 Git 커밋·Render 배포를 승인했으며 완료는 후속 공개 파일 확인 기록으로 구분한다. 실제 장비 LIVE·모바일 실화면·장시간 안정성은 미검증이다.
+
+### 2026-10-12
+
+- **Raw/Cycle RMS 표시 구현:** 사용자 승인으로 ML-cylinder/public/monitoring.html·real-monitor.js를 수정했다. 기존 Cycle 결과 영역은 실제 Cycle 특징이 있으면 Cycle을 표시하고, 없으면 API가 제공하는 같은 세션 Raw 패킷의 평균 제거 RMS 이력을 표시한다. 데이터 출처 제목·설명, SPH0645/INMP441 수치와 KST 측정 시각, RMS 세로축 눈금·가로축 제목 및 빈 데이터 대기 안내를 추가했다. 패킷 누락 구간은 연결하지 않으며 Raw RMS를 Cycle 특징이나 누설량으로 해석하지 않는다. 기존 패킷 그래프·Cycle 재생·STFT는 보존했다.
+- **검증·배포 여부:** node --check 통과. Mock Canvas로 Raw 이력·sequence 누락·숫자 표시·Cycle 전환·빈 데이터·320px/HiDPI 그리기·입력 보존 검증 통과. 로컬 UI 구현만 완료했고 GitHub Push·Render/Pi 배포는 하지 않았다. 실제 브라우저 화면·장비 LIVE 검증과 공개 웹 반영은 남아 있다. DB/API·MQTT·분석 계산·Wheel은 변경하지 않았다.
+
+- **RMS GitHub·Render 배포 완료(2026-10-12):** 사용자 승인으로 Render 연결 저장소 kang0840/ML-cylinder 최신 main(dc7cdf8)을 부모로 HTML·JavaScript 두 파일만 포함한 커밋 a63372644d0e3b3e1ea636fcb012f492d51b8b96을 생성·Push했다. 임시 Git index를 사용해 기존 로컬 index·작업 파일과 관련 없는 변경은 보존했다. GitHub 원격 main 해시 일치를 확인했고 Render 자동 배포 후 monitoring.html·real-monitor.js의 공개 응답 HTTP 200 및 줄바꿈 정규화 후 커밋 내용 전체 일치를 확인했다. 초기 조회는 이전 버전이었고 후속 조회에서 Raw RMS 전환·수치·축 코드 반영이 확인됐다. Render 대시보드는 로그인 필요 상태여서 수동 배포·설정 변경은 하지 않았다. 공개 파일 배포 확인은 완료됐으며 실제 센서 LIVE·모바일 실화면·장시간 안정성은 미검증이다. Pi·Wheel·DB/API·MQTT는 변경하지 않았다.
+
+- **중복 RMS 영역 제거·배포(2026-10-12):** 사용자 지시에 따라 같은 Raw 패킷 RMS를 반복 표시하던 아래 Raw/Cycle 그래프 영역을 삭제하고 RMS 수치·KST 측정 시각을 위 패킷 그래프로 통합했다. 실시간 그래프는 Cycle 유무와 관계없이 패킷 RMS를 사용하며 재생 모드는 동일 Canvas에서 저장 Cycle 이력을 명시해 표시한다. JS 문법·실제 HTML ID 대응·Canvas 하나 유지·Cycle 값과 패킷 값 분리·빈 상태 검증 통과. Render 연결 GitHub main에 HTML·JS 두 파일만 ef0dfbf로 커밋·Push했고, 공개 두 파일 HTTP 200·줄바꿈 정규화 후 커밋 전체 내용 일치·sensorChart 제거를 확인했다. 다른 로컬 변경·index는 보존했다. DB/API·MQTT·Cycle 계산·Pi·Wheel은 변경하지 않았다. 실제 장비 LIVE·모바일 실화면·장시간 안정성은 미검증이다.
+
+- **판별 성능 평가 상단 이동·배포(2026-10-12):** 사용자 요청으로 monitoring.html의 평가 영역을 상단 요약 바로 아래·RMS/STFT 위로 이동했다. 평가 블록 내용·항목 ID·준비 중 표시·계산 및 JS는 유지했다. 표시 순서와 전체 ID·평가 블록 보존 검증 통과. HTML 한 파일만 Render 연결 GitHub main에 7b6b066으로 커밋·Push했고, Render 공개 응답 HTTP 200·줄바꿈 정규화 후 커밋 전체 일치 및 평가 영역이 RMS보다 앞에 있는 것을 확인했다. 기존 로컬 index와 관련 없는 변경은 보존했다. 실제 모바일/장비 화면 검증과 평가 계산 연결은 미수행이며 Wheel·Pi·DB/API·MQTT 변경은 없다.
+
+- **Pi 0.1.11 배포 준비(2026-10-12):** 사용자 승인으로 pi_sensor_runtime.py의 설치 버전 검사와 안내를 0.1.10에서 0.1.11로 변경했다. 기존 0.1.11 Wheel은 재생성하거나 덮어쓰지 않았다. 실행기 Black·구문 검사, Wheel ZIP 무결성·버전 메타데이터·필수 Runtime 모듈 구문 검증 통과. 최초 메타데이터 검증은 줄바꿈 가정으로 실패했으며 splitlines로 수정한 검증이 통과했다. 직접 SSH는 인증 실패로 실제 전송·설치를 수행하지 못했고 사용자 실행용 전송·설치 명령을 제공했다. 실제 Pi 버전·Import 경로·pip check·센서 수집 및 DB 저장 검증은 남아 있다. Secret·DB·MQTT 규격은 변경하지 않았다.
+
+- **Pi 0.1.11 설치 확인(2026-10-12):** 사용자가 제공한 Pi 터미널 결과에서 smart-cylinder-common 0.1.11 기존 설치 제거 후 동일 버전 재설치 성공 및 pip check의 No broken requirements found를 확인했다. sensor_runtime.py Import 경로는 /opt/smart-cylinder-pi5/venv/lib/python3.13/site-packages/system/Backend/Server/sensor_runtime.py로 확인됐다. 이는 사용자 제공 실행 결과 기준의 Pi Wheel 설치 확인이며 실행기 덮어쓰기·수집 실행·실제 센서 수신 및 DB 저장은 아직 미확인이다.
+
+- **개선 전 그래프 재현 API 연결(2026-10-12):** 사용자 요청으로 before-graph-reconstructed.html의 API 주소를 기존 Render 공개 API로 지정하고 자동 조회를 활성화했다. Git 9b3e911 기반 재현이며 9월 배포 화면과 동일한지는 미확인이다. 주소 및 refresh 호출 정적 확인 완료, 브라우저 실제 데이터 수신 및 CORS 동작은 미확인이다. 배포하지 않았으며 DB·서비스 코드는 수정하지 않았다. 사용자가 촬영 완료를 알리면 재현 HTML을 삭제할 예정이다.
+
+- **개선 전 그래프 실제 데이터 재현(2026-10-12):** 사용자 제공 시리얼로 기존 Render API의 저장 측정 데이터를 조회하고 before-graph-reconstructed.html에 포함해 로컬 CORS 의존을 제거했다. 두 센서 Preview 배열의 크기 및 값 검증 통과. 측정 시각은 2026-10-07 20:23:23 KST이며 이전 표시 코드는 Git 9b3e911이다. 9월 당시 촬영 자료는 아니다. 배포하지 않았으며 실제 브라우저 표시는 사용자 확인 대기. 촬영 완료 후 재현 HTML과 조회 JSON 삭제 예정.
+
+- **개선 전 그래프 촬영 완료 및 정리(2026-10-12):** 사용자가 제공한 캡처로 이전 STFT 그래프 표시와 촬영 완료를 확인했다. 사용자 요청에 따라 before-graph-reconstructed.html과 before-graph-data.json을 삭제하고 두 파일 부재를 확인했다. 배포 없음. 캡처는 Git 개선 직전 코드에 2026-10-07 실제 측정 데이터를 표시한 재현 자료이며 9월 당시 촬영 자료와는 구분한다.
+
+- **그래프 개선 증빙 PDF 제작(2026-10-12):** 사용자 지정 사진 3장을 개선 전 재현 화면, 개선 후 화면, 사용자 피드백 순으로 graph-improvement-evidence.pdf에 원본 비율로 묶었다. 3페이지 렌더링 및 시각 검증 완료, 임시 검증 이미지는 정리했다. 배포 없음. 피드백 사진은 사용자 제공 원본 그대로 포함했다.
+
+- **W8 제출 README 보강(2026-10-12):** 사용자 승인으로 최신 공통 패키지 및 Pi 설치 확인 범위를 0.1.11로 정리하고 현재 설치 예시를 갱신했다. 심사용 웹 접속 절차, 현장 경험자 인터뷰 및 사용성 피드백의 검증 범위를 추가했다. 문제 정의·아키텍처·스택·실행방법·AI/외부 자문·라이선스 항목과 파일 경로를 정적으로 확인했다. 외부인의 신규 설치 실행은 미검증이다. 로컬 최상위 README만 수정했으며 GitHub 반영과 배포는 수행하지 않았다. Secret 및 시리얼 값은 추가하지 않았다.
