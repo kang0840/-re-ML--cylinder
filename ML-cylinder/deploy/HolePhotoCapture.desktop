@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=구멍 사진 100장 수집
+Comment=IMX500 미리보기와 연속 사진 촬영 — YOLO 미사용
+Exec=/usr/bin/python3 /home/mother/Desktop/capture_holes_100.py
+Icon=camera-photo
+Terminal=true
+Categories=AudioVideo;

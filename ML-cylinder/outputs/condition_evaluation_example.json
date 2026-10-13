@@ -1,0 +1,43 @@
+{
+  "dataset_description": "SYNTHETIC SOFTWARE CHECK ONLY; not cylinder performance",
+  "training_session_ids": [
+    "train-example"
+  ],
+  "rows": [
+    {
+      "sample_id": "1",
+      "session_id": "test-example",
+      "ground_truth": "NORMAL",
+      "prediction": "NORMAL",
+      "inference_status": "OK"
+    },
+    {
+      "sample_id": "2",
+      "session_id": "test-example",
+      "ground_truth": "SEAL_LEAK",
+      "prediction": "ABNORMAL",
+      "inference_status": "OK"
+    },
+    {
+      "sample_id": "3",
+      "session_id": "test-example",
+      "ground_truth": "NORMAL",
+      "prediction": "ABNORMAL",
+      "inference_status": "OK"
+    },
+    {
+      "sample_id": "4",
+      "session_id": "test-example",
+      "ground_truth": "SEAL_LEAK",
+      "prediction": "NORMAL",
+      "inference_status": "OK"
+    },
+    {
+      "sample_id": "5",
+      "session_id": "test-example",
+      "ground_truth": "NORMAL",
+      "prediction": null,
+      "inference_status": "ERROR"
+    }
+  ]
+}

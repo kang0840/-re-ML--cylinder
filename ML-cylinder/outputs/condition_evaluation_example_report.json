@@ -1,0 +1,38 @@
+{
+  "status": "EVALUATED",
+  "evaluation_scope": "EXPLORATORY",
+  "scope_note": "Session separation alone does not verify label provenance, cylinder independence or generalization.",
+  "rate_unit": "fraction_0_to_1",
+  "counts": {
+    "total": 5,
+    "labelled": 5,
+    "evaluated": 4,
+    "unknown_ground_truth": 0,
+    "inference_errors": 1,
+    "abstentions": 0,
+    "invalid_predictions": 0
+  },
+  "confusion_matrix": {
+    "tp": 1,
+    "fn": 1,
+    "fp": 1,
+    "tn": 1
+  },
+  "metrics": {
+    "accuracy": 0.5,
+    "precision": 0.5,
+    "abnormal_recall": 0.5,
+    "false_alarm_rate": 0.5,
+    "f1": 0.5,
+    "prediction_coverage": 0.8,
+    "correct_per_labelled_sample": 0.4
+  },
+  "sessions": [
+    "test-example"
+  ],
+  "training_session_overlap": [],
+  "warnings": [
+    "INCOMPLETE_PREDICTION_COVERAGE"
+  ],
+  "dataset_description": "SYNTHETIC SOFTWARE CHECK ONLY; not cylinder performance"
+}
