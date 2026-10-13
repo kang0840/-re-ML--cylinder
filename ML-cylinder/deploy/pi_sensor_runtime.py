@@ -196,8 +196,8 @@ def main():
     modes.add_argument("--operation", action="store_true")
     parser.add_argument("--env-file", default="/opt/smart-cylinder-pi5/.env")
     args = parser.parse_args()
-    if metadata.version("smart-cylinder-common") != "0.1.10":
-        print("PACKAGE_REQUIRED: smart-cylinder-common 0.1.10", flush=True)
+    if metadata.version("smart-cylinder-common") != "0.1.11":
+        print("PACKAGE_REQUIRED: smart-cylinder-common 0.1.11", flush=True)
         return 2
     lock = None
     try:
