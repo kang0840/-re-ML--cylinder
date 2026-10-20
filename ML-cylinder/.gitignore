@@ -19,3 +19,10 @@ data/export/
 
 models/*.pkl
 *.xlsx
+
+# Device-local credentials and access identifiers
+.env.*
+!.env.example
+**/device_secrets.py
+**/device_config.py
+data/serials.json
